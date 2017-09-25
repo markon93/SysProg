@@ -1,0 +1,60 @@
+#!/bin/bash
+# Detta skript hanterar en logg med händelser lagrade
+# i filen .plan. Filen innehåller som högst 5 rader
+# på formen 'DATUM TID KOMMANDO MASKINNAMN [MEDDELANDE]'.
+#
+# Författare: Marko Nygård, oi12mnd@cs.umu.se
+
+# Argument 1: kommando (login/logout/xlock/unxlock)
+# Resterande argument: valfritt meddelande
+NUMBER_OF_ARGUMENTS=$#
+COMMAND=$1
+MESSAGE="${@:2}"
+MAX_NUMBER_OF_LINES=5
+
+# Välj kommando
+case "$COMMAND" in
+  "login") COMMAND="logged in on " ;;
+  "logout") COMMAND="logged out from ";;
+  "xlock") COMMAND="locked ";;
+  "unxlock") COMMAND="unlocked ";;
+  *) echo "Unknown command keyword (use: login, logout, xlock, unxlock)."
+     exit 1 ;;
+esac
+
+# Fil att skriva outputen till
+OUTPUTFILE=".plan"
+
+# Högst 5 rader i filen
+if [ ! -f .plan ]
+then
+  NUMBER_OF_LINES=0
+else
+  NUMBER_OF_LINES=$(wc -l $OUTPUTFILE | cut -d' ' -f1)
+fi
+
+if (($NUMBER_OF_LINES >= $MAX_NUMBER_OF_LINES))
+then
+  sed -i '1,'$(($NUMBER_OF_LINES-4))'d' "$OUTPUTFILE"
+fi
+
+# Hämta datum på formen åå-mm-dd
+DATE=$(date +%y-%m-%d)
+echo -n $DATE" " >> $OUTPUTFILE
+
+#Hämta tiden på formen tt:mm:ss
+TIME=$(date +%T)
+echo -n $TIME": " >> $OUTPUTFILE
+echo -n $COMMAND" " >> $OUTPUTFILE
+
+# Hämta maskinens namn
+NAME=$(hostname)
+
+# Valfritt meddelande
+if [ $NUMBER_OF_ARGUMENTS != 1 ]
+then
+  echo -n $NAME >> $OUTPUTFILE
+  echo " with message \"$MESSAGE\"" >> $OUTPUTFILE
+else
+  echo $NAME >> $OUTPUTFILE
+fi

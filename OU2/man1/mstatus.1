@@ -1,0 +1,10 @@
+.TH MSTATUS 1 "2017-09-14" Linux "User Manuals"
+.SH NAME
+mstatus - store a log over the five latest changes in a .plan-file
+.SH SYNOPSIS
+mstatus {login|logout|xlock|unxlock} [message]
+.SH DESCRIPTION
+The user must enter their action (login/logout/xlock/unxlock) as the first argument, and may also add an optional message consisting of an arbitrary number of words. A line with information on the form "date-time-action-machine name(-message)" is written to the file .plan, which can be found in the same directory as mstatus. If the file does not exist, it is created the first time mstatus is used. The five most recent lines of information are stored in the file.
+.SH AUTHOR
+Marko Nygård <oi12mnd@cs.umu.se>
+
