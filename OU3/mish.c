@@ -37,7 +37,7 @@ void echo(int argc, char* argv[], char* outfile){
 void cd(char* newDirectory){
 	int tryChangeDir = chdir(newDirectory);
 	if(tryChangeDir != 0){
-		perror("");
+		perror(newDirectory);
 	}
 }
 
