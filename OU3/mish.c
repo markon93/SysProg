@@ -5,7 +5,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <unistd.h>
-
+#include "sighant.h"
 /* Skriv ut alla element i en sträng-array utom det första.
    - argc: antalet argument
    - argv: sträng-array med argumenten
@@ -31,6 +31,11 @@ void echo(int argc, char* argv[], char* outfile){
 	printf("\n");
 }
 
+void infiniteLoop(void){
+	while(true)
+  		sleep(5);
+}
+
 /* Byt katalog 
    - newDirectory: katalogen att byta till
 */
@@ -42,8 +47,9 @@ void cd(char* newDirectory){
 }
 
 int main (int argc, char * argv[]){
-  
+  	signal(SIGINT, sighant);
   	while(true){
+
   		char cwd[1024];
   		
 	  	// Skriv ut prompt
@@ -64,6 +70,7 @@ int main (int argc, char * argv[]){
 		// Parsa kommandoraden
 		command commandLine[MAXCOMMANDS + 1];
 		int numberOfCommands = parse(input, commandLine);
+		printf("Number of commands: %d\n",numberOfCommands);
 		
 		// Fastställ kommando
 		command c = commandLine[0];
@@ -71,6 +78,10 @@ int main (int argc, char * argv[]){
 		// Enter (tomt kommando): gör inget
 		if (c.argv == NULL){
 			continue;
+		}
+		
+		else if (strcmp(c.argv[0], "inf") == 0){
+			infiniteLoop();
 		}
 		
 		// Kommandot 'echo'
