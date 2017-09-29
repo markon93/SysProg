@@ -7,19 +7,25 @@ heltal.
 - Output: sorterad användarlista (på formen UID:username), vilken skrivs ut på
 stdout.
 
-Författare: MArko Nygård, oi12mnd@c.umu.se
+Författare: Marko Nygård, oi12mnd@c.umu.se
 08-09-2017
+
+Uppdatering 29-09-2017: bugg-fixar
 */
 #include "list.h"
 #include <string.h>
 #include <errno.h>
+#include <ctype.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
 typedef struct userInfo{
   int uid;
   char* username;
 } userInfo;
 
 #define NUMBER_OF_FIELDS 7
-#define MAX_LINE_LENGTH 1023
+#define MAX_LINE_LENGTH 1024
 /*
   Kontrollerar att en rad är på korrekt format
   - line: raden som ska kontrolleras
@@ -33,7 +39,7 @@ bool checkLineFormat(char line[], int numberOfFields, int lineNumber){
     return false;
   }
   if (numberOfFields != NUMBER_OF_FIELDS){
-    fprintf(stderr, "Line %d: Wrong format: %s\n", lineNumber, line);
+    fprintf(stderr, "Line %d: Wrong format: %s", lineNumber, line);
     return false;
   }
   return true;
@@ -68,18 +74,22 @@ int checkId(char id[], int lineNumber, char type[]){
   if(len == 1 && id[0] == '0'){
     return 0;
   }
-  int idInt = atoi(id);
-  if(idInt == 0){
-      fprintf(stderr, "Line %d: %s must be an integer. Found: %s\n",
-      lineNumber, type, id);
-      return -1;
-  }
-  else if (idInt < 0){
-    fprintf(stderr, "Line %d: %s must be positive. Found: %d\n",
-    lineNumber, type, idInt);
+
+  char* idP;
+  int intPart = (int) strtol(id, &idP, 10);
+  if(*idP != '\0'){
+    fprintf(stderr, "Line %d: %s must be an integer. Found: %s\n",
+    lineNumber, type, id);
     return -1;
   }
-  return idInt;
+  
+  if (intPart < 0){
+    fprintf(stderr, "Line %d: %s must be positive. Found: %d\n",
+    lineNumber, type, intPart);
+    return -1;
+  }
+
+  return intPart;
 }
 
 /*
@@ -132,6 +142,10 @@ användarnamn, id osv.
 void splitLine(char line[], int lineNumber, list* correctIds){
   // Dela upp i delsträngar
   char data[NUMBER_OF_FIELDS][MAX_LINE_LENGTH];
+  if(memset(data, 0, sizeof(data)) == NULL){
+	perror("");
+	exit(1);
+  }
   int len = strlen(line);
   int numberOfColons = 0, index = 0;
   for(int i = 0; i < len; i++){
@@ -140,8 +154,8 @@ void splitLine(char line[], int lineNumber, list* correctIds){
       index = 0;
     }
     else{
-        data[numberOfColons][index] = line[i];
-        index++;
+      data[numberOfColons][index] = line[i];
+      index++;
     }
   }
 
@@ -160,46 +174,60 @@ void splitLine(char line[], int lineNumber, list* correctIds){
   if(correct){
     uid = checkId(data[2], lineNumber, "UID");
     gid = checkId(data[3], lineNumber, "GID");
+    if(uid < 0 || gid < 0){
+      correct = false;
+    }
   }
 
   // Lägg in korrekt formaterade användarnamn och UIDN i lista.
   // Sortera enligt växande UID vid insättningen.
   char* username = malloc(sizeof(username));
   if(username == NULL){
-    perror("");
+	perror("");
+	exit(1);
   }
+
   userInfo* info = malloc(sizeof(info));
   if(info == NULL){
-    perror("");
+  	perror("");
   }
-  userInfo* temp;
-  if(uid >= 0 && gid >= 0){
-    if(strcpy(username, data[0]) == NULL){
-      perror("");
-    }
-    info -> uid = uid;
-    info -> username = username;
+  
+  if(correct){
+	  userInfo* temp;
+	  if(uid >= 0 && gid >= 0){
+		if(strcpy(username, data[0]) == NULL){
+		  perror("");
+		  exit(1);
+		}
+		
+		info -> uid = uid;
+		info -> username = username;
 
-    node* pos = list_first(correctIds);
-    while(!list_end(correctIds, pos)){
-      temp = list_getValue(correctIds, pos);
-      if(info -> uid < temp -> uid){
-        break;
-      }
-      pos = list_next(correctIds, pos);
-    }
-    list_insert(correctIds, pos, info);
+		node* pos = list_first(correctIds);
+		while(!list_end(correctIds, pos)){
+		  temp = list_getValue(correctIds, pos);
+		  if(info -> uid < temp -> uid){
+		    break;
+		  }
+		  pos = list_next(correctIds, pos);
+		}
+		list_insert(correctIds, pos, info);
+	  }
   }
+  
   if(memset(data, 0, sizeof(data)) == NULL){
-    perror("");
+	perror("");
+	exit(1);
   }
+
   if(info -> username == NULL){
-    free(info);
-    free(username);
+  	free(info);
+	free(username);
   }
+  
   else{
-    info = NULL;
-    free(info);
+	info = NULL;
+	free(info);
   }
 }
 
@@ -260,17 +288,19 @@ void removeNames(list* l){
 int main(int argc, char* argv[]){
 
   FILE* f = checkArguments(argc, argv);
-
   char l[MAX_LINE_LENGTH];
   int lineNumber = 1;
   list* ids = list_create();
+  
   while(fgets(l, sizeof(l), f) != NULL){
     splitLine(l, lineNumber, ids);
     lineNumber++;
   }
   displayInfo(ids);
+  
   removeNames(ids);
   list_free(ids);
   fclose(f);
+ 
   return 0;
 }
