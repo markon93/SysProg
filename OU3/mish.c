@@ -19,12 +19,12 @@ void echo(int argc, char* argv[], char* outfile){
 	else{
 		out = fopen(outfile, "w");
 	}
-	
+
 	if(out == NULL){
 		perror("");
 		exit(1);
 	}
-	
+
 	for(i = 1; i < argc; i++){
 			fprintf(out, "%s ", argv[i]);
 	}
@@ -36,7 +36,7 @@ void infiniteLoop(void){
   		sleep(5);
 }
 
-/* Byt katalog 
+/* Byt katalog
    - newDirectory: katalogen att byta till
 */
 void cd(char* newDirectory){
@@ -51,7 +51,7 @@ int main (int argc, char * argv[]){
   	while(true){
 
   		char cwd[1024];
-  		
+
 	  	// Skriv ut prompt
 		fprintf(stderr, "mish%% ");
 		int tryFlush = fflush(stderr);
@@ -59,46 +59,46 @@ int main (int argc, char * argv[]){
 			perror("");
 			exit(1);
 		}
-		
+
 		// Scanna in kommandorad
-		char input[MAXLINELEN + 1];  
+		char input[MAXLINELEN + 1];
 		if(fgets(input, MAXLINELEN + 1, stdin) == NULL){
 			printf("\n");
 			return(0);
 		}
-	
+
 		// Parsa kommandoraden
 		command commandLine[MAXCOMMANDS + 1];
 		int numberOfCommands = parse(input, commandLine);
 		printf("Number of commands: %d\n",numberOfCommands);
-		
+
 		// Fastställ kommando
 		command c = commandLine[0];
-		
+
 		// Enter (tomt kommando): gör inget
 		if (c.argv == NULL){
 			continue;
 		}
-		
+
 		else if (strcmp(c.argv[0], "inf") == 0){
 			infiniteLoop();
 		}
-		
+
 		// Kommandot 'echo'
 		else if(strcmp(c.argv[0], "echo") == 0){
 			echo(c.argc, c.argv, c.outfile);
 		}
-		
+
 		// Kommandot cd
 		else if(strcmp(c.argv[0], "cd") == 0){
 			cd(c.argv[1]);
 		}
-		
+
 		// Skriv ut current directory
 		else if(strcmp(c.argv[0], "cwd") == 0){
 			printf("Current directory: %s\n", getcwd(cwd, sizeof(cwd)));
 		}
-		
+
 		else {
 			char exec[1024];
 			if(c.argv[0][0] == '.' && c.argv[0][1] == '/'){
@@ -118,7 +118,7 @@ int main (int argc, char * argv[]){
 			}
 		}
 	}
-	
-    printf("\n"); 
+
+    printf("\n");
     return 0;
 }
