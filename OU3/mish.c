@@ -100,7 +100,6 @@ int main (int argc, char * argv[]){
 
 			// Exekvera internt kommando
 			if(c.internal == 0){
-				printf("INTERNAL\n");
 				// Kommandot 'echo'
 				if(strcmp(c.argv[0], "echo") == 0){
 					echo(c.argc, c.argv, c.outfile);
@@ -121,9 +120,11 @@ int main (int argc, char * argv[]){
 			else {
 				pid_t pid;
 				for (int i = 0; i < numberOfCommands; i++){
-					pid = fork();
-					fprintf(stderr,"pid = %d\n", pid);
+					command c = commandLine[i];
+					fprintf(stderr,"pid = %d\n", getpid());
 					printf("En fork hände!\n");
+					pid = fork();
+
 					// Fel vid forkningen
 					if(pid < 0){
 						perror("");
@@ -133,7 +134,9 @@ int main (int argc, char * argv[]){
 					else if(pid == 0){
 						fprintf(stderr,"Barnet gör något\n");
 						fflush(stderr);
-						system("ls");
+
+
+						execvp(c.argv[0], c.argv);
 
 						break;
 					}
@@ -149,29 +152,10 @@ int main (int argc, char * argv[]){
 
 				}
 
-
-/*
-				for(int i = 0; i < argc; i++){
-					commandPids[i] = 1;
-				}
-
-				char exec[1024];
-				if(c.argv[0][0] == '.' && c.argv[0][1] == '/'){
-					for(int j = 0; j < c.argc; j++){
-						strcat(exec, c.argv[j]);
-						strcat(exec, " ");
-					}
-					printf("%s\n", exec);
-					int status = system(exec);
-					if(memset(exec, 0, sizeof(exec)) == NULL){
-    				perror("");
-  				}
-				}
-				else{
-					fprintf(stderr, "Unknown command.\n");
-					continue;
-				}
-*/
+		// Barnprocessen är klar
+		if (getpid() != parentPid){
+			return 0;
+		}
 
 		// Avsluta alla barnprocesser på signal ctrl+c
 		if(getpid() == parentPid && signalReceived == 1 &&
@@ -185,12 +169,16 @@ int main (int argc, char * argv[]){
 
 	}
 sleep(1);
-		//for (int i = 0; i < numberOfCommands; i++){
-		//	printf("time to die, pid = %d\n",commandPids[i]);
-		//	kill(commandPids[i], SIGINT);
-		//}
 
-		// Om barnprocesserna ej avslutades, döda dem.
+		// Avsluta alla barnprocesser
+		if (getpid() == parentPid){
+			for (int i = 0; i < numberOfCommands; i++){
+				printf("time to die, pid = %d\n",commandPids[i]);
+				kill(commandPids[i], SIGKILL);
+			}
+		}
+
+
 
 	}
 
