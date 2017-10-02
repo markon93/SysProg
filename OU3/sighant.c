@@ -1,13 +1,7 @@
 #include "sighant.h"
 
-void sighant(int signum) {
-    if (signum == SIGINT) {
-        fprintf(stderr, "En SIGINT signal\n");
-        exit(1);
-    } 
-    else {
-        fprintf(stderr, "Okänt fel\n");
+void sighant(int sig) {
+    if (sig == SIGINT) {
+        signalReceived = 1;
     }
-    return;
 }
-

@@ -14,7 +14,7 @@ Uppdatering 29-09-2017: bugg-fixar
 */
 #include "list.h"
 #include <string.h>
-#include <errno.h>
+#include "errno.h"
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
