@@ -10,36 +10,18 @@
 #include <errno.h>
 #include <signal.h>
 #include "sighant.h"
+#include "execute.h"
 
 int signalReceived = 0;
 /* Skriv ut alla element i en sträng-array utom det första.
    - argc: antalet argument
    - argv: sträng-array med argumenten
 */
-void echo(int argc, char* argv[], char* outfile){
-	int i;
-	FILE* out;
-	if(outfile == NULL){
-		out = stdout;
-	}
-	else{
-		out = fopen(outfile, "w");
-	}
-
-	if(out == NULL){
-		perror("");
-		exit(1);
-	}
-
-	for(i = 1; i < argc; i++){
-			fprintf(out, "%s ", argv[i]);
+void echo(int argc, char* argv[]){
+	for(int i = 1; i < argc; i++){
+			printf("%s ", argv[i]);
 	}
 	printf("\n");
-}
-
-void infiniteLoop(void){
-	while(true)
-  		sleep(5);
 }
 
 /* Byt katalog
@@ -56,8 +38,7 @@ int main (int argc, char * argv[]){
   	signal(SIGINT, sighant);
 		pid_t parentPid = getpid();
 		while(true){
-
-  		char cwd[1024];
+			signalReceived = 0;
 
 	  	// Skriv ut prompt
 			fprintf(stderr, "mish%% ");
@@ -72,7 +53,8 @@ int main (int argc, char * argv[]){
 			// Scanna in kommandorad
 			char input[MAXLINELEN + 1];
 			if(fgets(input, MAXLINELEN + 1, stdin) == NULL){
-				printf("\n");
+				printf("in=%s\n",input);
+				perror("");
 				return(0);
 			}
 
@@ -102,25 +84,42 @@ int main (int argc, char * argv[]){
 			if(c.internal == 0){
 				// Kommandot 'echo'
 				if(strcmp(c.argv[0], "echo") == 0){
-					echo(c.argc, c.argv, c.outfile);
+					echo(c.argc, c.argv);
+					continue;
 				}
 
 				// Kommandot cd
 				else if(strcmp(c.argv[0], "cd") == 0){
 					cd(c.argv[1]);
-				}
-
-				// Skriv ut current directory
-				else if(strcmp(c.argv[0], "cwd") == 0){
-					printf("Current directory: %s\n", getcwd(cwd, sizeof(cwd)));
+					continue;
 				}
 			}
 
 ////////////////////////////////////
 			else {
+/*				for(int i = 0; i < numberOfCommands){
+					int pid = fork();
+					if (pid == 0){
+						break;
+					}
+				}
+
+				for(int i = 0; i < numberOfCommands - 1; i++){
+
+					if(pipe())
+				}*/
+				for (int i = 0; i < numberOfCommands - 1; i++){
+					int fd[2];
+					if(pipe(fd) != 0){
+						perror("");
+					}
+				}
+
+				bool killP = false;
 				pid_t pid;
 				for (int i = 0; i < numberOfCommands; i++){
 					command c = commandLine[i];
+
 					fprintf(stderr,"pid = %d\n", getpid());
 					printf("En fork hände!\n");
 					pid = fork();
@@ -132,12 +131,19 @@ int main (int argc, char * argv[]){
 					}
 
 					else if(pid == 0){
+
+						if(c.outfile != NULL){
+					  	int fdOut = redirect(c.outfile, 0, STDIN_FILENO);
+					  }
+
+						if(c.infile != NULL){
+							int fdIn = redirect(c.infile, 1, STDOUT_FILENO);
+						}
+
 						fprintf(stderr,"Barnet gör något\n");
 						fflush(stderr);
 
-
 						execvp(c.argv[0], c.argv);
-
 						break;
 					}
 
@@ -148,7 +154,10 @@ int main (int argc, char * argv[]){
 						int s;
 						waitpid(pid, &s, 0);
 					}
-
+					if (signalReceived == 1){
+						killP = true;
+						break;
+					}
 
 				}
 
@@ -158,17 +167,14 @@ int main (int argc, char * argv[]){
 		}
 
 		// Avsluta alla barnprocesser på signal ctrl+c
-		if(getpid() == parentPid && signalReceived == 1 &&
+		if(getpid() == parentPid && killP &&
 	commandPids != NULL){
 			for (int i = 0; i < numberOfCommands; i++){
-					printf("PiD = %d\n",commandPids[i]);
-					kill(commandPids[i], SIGKILL);
+					printf("Control C pressed.\n");
+					kill(pid, SIGKILL);
 			}
 		}
-
-
 	}
-sleep(1);
 
 		// Avsluta alla barnprocesser
 		if (getpid() == parentPid){
@@ -177,9 +183,6 @@ sleep(1);
 				kill(commandPids[i], SIGKILL);
 			}
 		}
-
-
-
 	}
 
   printf("\n");

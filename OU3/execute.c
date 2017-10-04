@@ -22,6 +22,25 @@ int dupPipe(int pip[2], int end, int destfd){
  * Returns:	-1 on error, else destfd
  */
 int redirect(char *filename, int flags, int destfd){
-	return 1;
-}
+	// Open file descriptor for writing
+	if(flags == 0){
+		  destfd = open(filename, O_WRONLY| O_CREAT, 0666);
+			dup2(destfd, STDOUT_FILENO);
+			close(destfd);
+			return destfd;
+	}
 
+	// Open for reading
+	else if(flags == 1){
+		destfd = open(filename, O_RDONLY, 0666);
+		dup2(destfd, STDIN_FILENO);
+		close(destfd);
+		return destfd;
+	}
+
+	// Undefined flag
+	else{
+		fprintf(stderr, "No such flag. Must be 0 (writing) or 1 (reading).\n");
+		return -1;
+	}
+}

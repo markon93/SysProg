@@ -1,5 +1,12 @@
-/* execute.h   
- * 
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/fcntl.h>
+
+/* execute.h
+ *
  * Headerfile for a shell command interpreter and executer
  *
  * Author: Peter Jacobson
@@ -55,4 +62,3 @@ int dupPipe(int pip[2], int end, int destfd);
 int redirect(char *filename, int flags, int destfd);
 
 #endif
-
