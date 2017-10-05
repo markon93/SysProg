@@ -2,7 +2,6 @@
 
 #ifndef _PARSER_
 #define _PARSER_
-extern int commandIndex;
 /* Author: Peter Jacobson
  * Date:   ??
  *

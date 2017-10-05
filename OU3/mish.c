@@ -1,4 +1,4 @@
-#define _POSIX_SOURCE
+#define _GNU_SOURCE
 #include "parser.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -7,17 +7,16 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/mman.h>
 #include <errno.h>
 #include <signal.h>
 #include "sighant.h"
 #include "execute.h"
 
-int commandIndex = 0;
-
 int signalReceived = 0;
-/* Skriv ut alla element i en sträng-array utom det första.
-   - argc: antalet argument
-   - argv: sträng-array med argumenten
+/* Echo: Displays all of its arguments to stdout
+   - argc: the number of arguments
+   - argv: string array with the arguments
 */
 void echo(int argc, char* argv[]){
 	for(int i = 1; i < argc; i++){
@@ -26,8 +25,8 @@ void echo(int argc, char* argv[]){
 	printf("\n");
 }
 
-/* Byt katalog
-   - newDirectory: katalogen att byta till
+/* Change the current working directory
+   - newDirectory: the directory to change to
 */
 void cd(char* newDirectory){
 	int tryChangeDir = chdir(newDirectory);
@@ -37,12 +36,18 @@ void cd(char* newDirectory){
 }
 
 int main (int argc, char * argv[]){
+	// Create a signal handler
   	signal(SIGINT, sighant);
+
+	// Shared memory variable for connecting child pid to command number
+	int * commandIndex = mmap(NULL, sizeof(int), PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANON, -1, 0);
+
 	pid_t parentPid = getpid();
 	while(true){
 		signalReceived = 0;
+		*commandIndex = 0;
 
-	  	// Skriv ut prompt
+	  	// Write a prompt
 		fprintf(stderr, "mish%% ");
 		int tryFlush = fflush(stderr);
 		if(tryFlush != 0){
@@ -50,27 +55,27 @@ int main (int argc, char * argv[]){
 			exit(1);
 		}
 
-		// Scanna in kommandorad
+		// Scan the command line
 		char input[MAXLINELEN + 1];
 		if(fgets(input, MAXLINELEN + 1, stdin) == NULL){
 			perror("");
 			return(0);
 		}
 
-		// Parsa kommandoraden
+		// Parse the command line
 		command commandLine[MAXCOMMANDS + 1];
 		int numberOfCommands = parse(input, commandLine);
 
-		// Enter (tomt kommando): gör inget
+		// Enter pressed: new prompt
 		if (numberOfCommands == 0){
 			continue;
 		}
 
-		// Fastställ kommando
+		// Get command
 		command c = commandLine[0];
 
-		// Kolla om kommandot är internt eller externt
-		// Internt = 0; externt = 1.
+		// Check whether the command is external or internal
+		// Internal = 0; external = 1.
 		if(strcmp(c.argv[0], "echo") == 0|| strcmp(c.argv[0], "cd") == 0){
 			c.internal = 0;
 		}
@@ -78,15 +83,15 @@ int main (int argc, char * argv[]){
 			c.internal = 1;
 		}
 
-		// Exekvera internt kommando
+		// Execute internal command
 		if(c.internal == 0){
-			// Kommandot 'echo'
+			// echo command
 			if(strcmp(c.argv[0], "echo") == 0){
 				echo(c.argc, c.argv);
 				continue;
 			}
 
-			// Kommandot cd
+			// cd command
 			else if(strcmp(c.argv[0], "cd") == 0){
 				cd(c.argv[1]);
 				continue;
@@ -97,8 +102,8 @@ int main (int argc, char * argv[]){
 		else {
 			pid_t childPids[numberOfCommands + 1];
 			// Create pipes
+			int fd[2];
 			for(int i = 0; i < numberOfCommands - 1; i++){
-				int fd[2];
 				if(pipe(fd) != 0){
 					perror("pipe");					
 				}
@@ -116,8 +121,8 @@ int main (int argc, char * argv[]){
 
 				else if (pid == 0){
 					printf("Child breaks.\n");
-					commandIndex++;
-					printf("Command index C = %d\n",commandIndex);		
+					*commandIndex = *commandIndex + 1;
+					printf("Command index C = %d\n",*commandIndex);		
 					break;
 				}
 
@@ -129,7 +134,7 @@ int main (int argc, char * argv[]){
 			// Execute all the child processes
 			if(getpid() != parentPid){
 				printf("Child %d wants to do its business.\n",getpid());
-				command c = commandLine[commandIndex - 1];
+				command c = commandLine[*commandIndex - 1];
 			
 				if(c.outfile != NULL){
 					if(redirect(c.outfile, 0, STDIN_FILENO) == -1){
@@ -143,16 +148,32 @@ int main (int argc, char * argv[]){
 					}
 				}
 				
+				if(*commandIndex - 1 == 0){
+					dupPipe(fd, WRITE_END, STDOUT_FILENO);
+				}
+
+				else if(*commandIndex == numberOfCommands){
+					dupPipe(fd, READ_END, STDIN_FILENO);
+				}
+				else{
+					dupPipe(fd, READ_END, STDIN_FILENO);
+					dupPipe(fd, WRITE_END, STDOUT_FILENO);
+				}
+
 				execvp(c.argv[0], c.argv);				
 				return 0;			
 			}
 				
 			if(getpid() == parentPid){
-				printf("Command index P = %d\n",commandIndex);		
+				printf("Command index P = %d\n",*commandIndex);		
 				for(int j = 0; j < numberOfCommands; j++){
 					int s;						
 					waitpid(childPids[j], &s, 0);					
 				}
+			}
+
+			for(int j = 3; j < 2*numberOfCommands; j++){
+				close(j);
 			}
 
 	/*
