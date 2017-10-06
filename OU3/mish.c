@@ -105,13 +105,13 @@ int main (int argc, char * argv[]){
 			int fd[2];
 			for(int i = 0; i < numberOfCommands - 1; i++){
 				if(pipe(fd) != 0){
-					perror("pipe");					
+					perror("pipe");
+					exit(1);					
 				}
 			}
 
 			// Create child processes
 			for(int i = 0; i < numberOfCommands; i++){
-				printf("FORK INCOMING!!!\n");
 				int pid = fork();
 
 				if(pid < 0){
@@ -120,9 +120,8 @@ int main (int argc, char * argv[]){
 				}				
 
 				else if (pid == 0){
-					printf("Child breaks.\n");
-					*commandIndex = *commandIndex + 1;
-					printf("Command index C = %d\n",*commandIndex);		
+					*commandIndex = *commandIndex + 1;	
+					fprintf(stderr,"Child %d: cI = %d\n", getpid(), *commandIndex);
 					break;
 				}
 
@@ -133,7 +132,7 @@ int main (int argc, char * argv[]){
 		
 			// Execute all the child processes
 			if(getpid() != parentPid){
-				printf("Child %d wants to do its business.\n",getpid());
+				printf("Child %d ready.\n",getpid());
 				command c = commandLine[*commandIndex - 1];
 			
 				if(c.outfile != NULL){
@@ -148,33 +147,40 @@ int main (int argc, char * argv[]){
 					}
 				}
 				
-				if(*commandIndex - 1 == 0){
-					dupPipe(fd, WRITE_END, STDOUT_FILENO);
-				}
+				if(numberOfCommands > 1){
+					if(*commandIndex == 1){
+						dupPipe(fd, WRITE_END, STDOUT_FILENO);
+						fprintf(stderr,"Child %d duping write.\n", getpid());
+					}
 
-				else if(*commandIndex == numberOfCommands){
-					dupPipe(fd, READ_END, STDIN_FILENO);
+					else if(*commandIndex == numberOfCommands){
+						dupPipe(fd, READ_END, STDIN_FILENO);
+						fprintf(stderr,"Child %d duping read.\n", getpid());
+					}
+					else{
+						dupPipe(fd, READ_END, STDIN_FILENO);
+						dupPipe(fd, WRITE_END, STDOUT_FILENO);
+					}
 				}
-				else{
-					dupPipe(fd, READ_END, STDIN_FILENO);
-					dupPipe(fd, WRITE_END, STDOUT_FILENO);
-				}
-
-				execvp(c.argv[0], c.argv);				
+				fprintf(stderr,"Child %d done.\n", getpid());
+				if(execvp(c.argv[0], c.argv) < 0){
+					perror("exec");
+					return -1;
+				}	
+				fprintf(stderr,"Child %d done.\n", getpid());			
 				return 0;			
 			}
 				
-			if(getpid() == parentPid){
-				printf("Command index P = %d\n",*commandIndex);		
+			if(getpid() == parentPid){	
 				for(int j = 0; j < numberOfCommands; j++){
 					int s;						
 					waitpid(childPids[j], &s, 0);					
 				}
 			}
 
-			for(int j = 3; j < 2*numberOfCommands; j++){
-				close(j);
-			}
+//			for(int j = 3; j < 2*numberOfCommands; j++){
+//				close(j);
+//			}
 
 	/*
 

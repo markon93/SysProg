@@ -11,10 +11,12 @@ int dupPipe(int pip[2], int end, int destfd){
 	if(end == READ_END){
 		destfd = dup2(pip[0], destfd);
 		close(pip[READ_END]);
+		close(pip[WRITE_END]);
 	}
 	else if(end == WRITE_END){
 		dup2(pip[1], destfd);
 		close(pip[WRITE_END]);
+		close(pip[READ_END]);
 	}
 
 	else{
