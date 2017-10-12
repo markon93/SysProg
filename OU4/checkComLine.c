@@ -1,18 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <pthread.h>
 #include <string.h>
 #include <stdbool.h>
-
-#define NUM_VALID_TYPE_FLAGS 3
-
-// Command line arguments
-typedef struct command{
-	char type;
-	int nrthr;
-	char* name;
-	char* start[];
-} command;
+#include "checkComLine.h"
 
 // Prints out a common error message
 void standardErrorMessage(){
@@ -204,14 +194,4 @@ command* getCommand(int argc, char* argv[], int mode){
 		c -> start[i] = argv[argc - nStarts - 1 + i];
 	}
 	return c;
-}
-
-/* Main */
-int main(int argc, char* argv[]){
-	
-	int mode = checkGivenFlags(argc, argv);
-	command* c = getCommand(argc, argv, mode);
-	
-	free(c);
-	return 0;
 }
