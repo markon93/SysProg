@@ -119,62 +119,45 @@ int checkGivenFlags(int argc, char* argv[]){
 }
 
 
-// Get type if it is specified
-/*char checkType(command* c, ){
-	
-	if(!strcmp(argv[1], "-t")){
-
-		int errno; 
-		// Not enough arguments
-		if(argc < 5){
-			errno = 1;
-			errorHandler(errno);
-			exit(2);
-		}
-
-		// Invalid flag length (should be 1)
-		if(strlen(argv[2]) != 1){
-			errno = 2;
-			errorHandler(errno);
-			exit(3);
-		}
-
-		// Invalid flag symbol
-		char validFlags[NUM_VALID_TYPE_FLAGS] = {'d', 'f', 'l'};
-		for(int i = 0; i < NUM_VALID_TYPE_FLAGS; i++){
-			if (*argv[2] == validFlags[i]){
-				printf("Type specified: %s\n", argv[2]);
-				return *argv[2];
-			}
-		}
-
+/* 
+	Check if the type is correctly specified. The error 
+	handler function is invoced if the type is not valid.
+	- type: The user supplied type
+*/
+char checkType(char* type){
+	int errno;
+	if(strlen(type) != 1){
 		errno = 2;
 		errorHandler(errno);
-		exit(3);
-
-	} 
-	else{
-		return 'f';
 	}
+
+	char* validTypes = "fld";
+	bool validType = false; 
+	for(int i = 0; i < NUM_VALID_TYPE_FLAGS; i++){
+		if(strchr(type, validTypes[i])){
+			validType = true;
+			break;
+		}
+	}
+
+	if(!validType){
+		errno = 2;
+		errorHandler(errno);
+	}
+	return type[0];
 }
-*/
 
-/*	Check which command and flags were used
-
-*/
-void getCommand(int argc, char* argv[]){
-	
-}
-
-
+/* Main */
 int main(int argc, char* argv[]){
 	printf("Welcome!\n");
 	int mode = checkGivenFlags(argc, argv);
 	fprintf(stdout, "Mode: %d\n", mode);
 
-	command* c = malloc(sizeof(*c) + (argc - 2)*sizeof(char*));
 
+	command* c;
+	// No flags given
 	if(mode == 0){
+		c = malloc(sizeof(*c) + (argc - 2)*sizeof(char*));
 		c -> type = 'f';
 		c -> nrthr = 1;
 		c -> name = argv[argc - 1];
@@ -184,10 +167,21 @@ int main(int argc, char* argv[]){
 		}
 	}
 
+	if(mode == 1){
+		char t = checkType(argv[2]);
+		c = malloc(sizeof(*c) + (argc - 4)*sizeof(char*));
+		c -> type = t;
+		c -> name = argv[argc - 1];
+		int numStarts = argc - 4;
+		for (int i = 0; i < numStarts; i++){
+			c -> start[i] = argv[i + 3];
+		} 
+	}
+
 	printf("%d\n", c -> nrthr);
 	printf("%c\n", c -> type);
 	printf("%s\n", c -> name);
-	for(int j = 0; j < argc - 2; j++){
+	for(int j = 0; j < argc - 4; j++){
 		printf("%s\n", c -> start[j]);
 	}
 
