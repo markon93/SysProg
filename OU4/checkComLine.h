@@ -7,6 +7,7 @@ Author: Marko Nygård, oi12mnd@cs.umu.se
 #ifndef CHECK_COM_LINE
 #define CHECK_COM_LINE
 
+#include "queue.h"
 #define NUM_VALID_TYPE_FLAGS 3
 
 /* Store command line options*/
@@ -15,7 +16,7 @@ typedef struct command{
   int nrthr;
   char* name;
   int nStarts;
-  char* start[];
+  queue* dirQueue;
 } command;
 
 /* Prints a string containing a common error message. */

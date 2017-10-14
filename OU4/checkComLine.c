@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include "queue.h"
 #include "checkComLine.h"
 
 /* Prints a string containing a common error message. */
@@ -202,8 +203,11 @@ command* getCommand(int argc, char* argv[], int mode){
 	c -> nrthr = nrthr;
 	c -> name = argv[argc - 1];
 	c -> nStarts = nStarts;
+	queue* dirQueue = q_create();
 	for (int i = 0; i < nStarts; i++){
-		c -> start[i] = argv[argc - nStarts - 1 + i];
+		 q_enqueue(dirQueue, argv[argc - nStarts - 1 + i]);
 	}
+	c -> dirQueue = dirQueue;
+
 	return c;
 }
