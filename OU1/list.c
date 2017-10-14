@@ -14,10 +14,12 @@ list* list_create(){
   list* created_list = malloc(sizeof(list));
   if(created_list == NULL){
     perror("");
+    exit(1);
   }
   created_list -> head = malloc(sizeof(node));
   if(created_list -> head == NULL){
     perror("");
+    exit(1);
   }
   created_list -> head -> value = NULL;
   created_list -> head -> next = NULL;
@@ -52,6 +54,7 @@ node* list_insert(list* l, node* pos, void* value){
   node* new = malloc(sizeof(node));
   if(new == NULL){
     perror("");
+    exit(1);
   }
   new -> value = value;
   new -> next = pos -> next;

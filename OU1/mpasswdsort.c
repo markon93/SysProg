@@ -26,6 +26,10 @@ typedef struct userInfo{
 
 #define NUMBER_OF_FIELDS 7
 #define MAX_LINE_LENGTH 1024
+
+// Om denna variabel förändras innebär det att ett fel i indatat har inträffat.
+int exitStatus = 0;
+
 /*
   Kontrollerar att en rad är på korrekt format
   - line: raden som ska kontrolleras
@@ -36,10 +40,12 @@ typedef struct userInfo{
 bool checkLineFormat(char line[], int numberOfFields, int lineNumber){
   if (strlen(line) == 1){
     fprintf(stderr, "Line %d: <BLANKLINE> detected.\n", lineNumber);
+    exitStatus = 1;
     return false;
   }
   if (numberOfFields != NUMBER_OF_FIELDS){
     fprintf(stderr, "Line %d: Wrong format: %s", lineNumber, line);
+    exitStatus = 1;
     return false;
   }
   return true;
@@ -56,6 +62,7 @@ bool checkUsernameLength(char username[], int lineNumber){
   if(len > 32){
     fprintf(stderr, "Line %d: Invalid username length: "
     "%d characters detected.\n", lineNumber, len);
+    exitStatus = 1;
     return false;
   }
   return true;
@@ -80,12 +87,14 @@ int checkId(char id[], int lineNumber, char type[]){
   if(*idP != '\0'){
     fprintf(stderr, "Line %d: %s must be an integer. Found: %s\n",
     lineNumber, type, id);
+    exitStatus = 1;
     return -1;
   }
-  
+
   if (intPart < 0){
     fprintf(stderr, "Line %d: %s must be positive. Found: %d\n",
     lineNumber, type, intPart);
+    exitStatus = 1;
     return -1;
   }
 
@@ -120,12 +129,14 @@ bool checkEmptyFields(char data[NUMBER_OF_FIELDS][MAX_LINE_LENGTH],
       }
       fprintf(stderr, "Line %d: The %s field can not be empty.\n",
       lineNumber, emptyField);
+      exitStatus = 1;
       return false;
     }
     else if(len == 1 && i == 6){
       emptyField = "shell";
       fprintf(stderr, "Line %d: The %s field can not be empty.\n",
       lineNumber, emptyField);
+      exitStatus = 1;
       return false;
     }
   }
@@ -142,10 +153,8 @@ användarnamn, id osv.
 void splitLine(char line[], int lineNumber, list* correctIds){
   // Dela upp i delsträngar
   char data[NUMBER_OF_FIELDS][MAX_LINE_LENGTH];
-  if(memset(data, 0, sizeof(data)) == NULL){
-	perror("");
-	exit(1);
-  }
+  memset(data, 0, sizeof(data));
+
   int len = strlen(line);
   int numberOfColons = 0, index = 0;
   for(int i = 0; i < len; i++){
@@ -183,23 +192,22 @@ void splitLine(char line[], int lineNumber, list* correctIds){
   // Sortera enligt växande UID vid insättningen.
   char* username = malloc(sizeof(username));
   if(username == NULL){
-	perror("");
-	exit(1);
+	  perror("");
+	  exit(1);
   }
 
-  userInfo* info = malloc(sizeof(info));
+  userInfo* info = malloc(sizeof(info) + sizeof(username));
   if(info == NULL){
   	perror("");
+    exit(1);
   }
-  
+  info -> username = NULL;
+
   if(correct){
 	  userInfo* temp;
 	  if(uid >= 0 && gid >= 0){
-		if(strcpy(username, data[0]) == NULL){
-		  perror("");
-		  exit(1);
-		}
-		
+		strcpy(username, data[0]);
+
 		info -> uid = uid;
 		info -> username = username;
 
@@ -214,21 +222,17 @@ void splitLine(char line[], int lineNumber, list* correctIds){
 		list_insert(correctIds, pos, info);
 	  }
   }
-  
-  if(memset(data, 0, sizeof(data)) == NULL){
-	perror("");
-	exit(1);
-  }
 
   if(info -> username == NULL){
   	free(info);
-	free(username);
+	  free(username);
   }
-  
+
   else{
-	info = NULL;
-	free(info);
+	  info = NULL;
+	  free(info);
   }
+  memset(data, 0, sizeof(data));
 }
 
 /*
@@ -244,13 +248,13 @@ FILE* checkArguments(int argc, char* argv[]){
   }
   else if(argc == 2){
     f = fopen(argv[1], "r");
+    if(f == NULL){
+      perror("");
+      exit(1);
+    }
   }
   else{
     fprintf(stderr, "Number of arguments must be 1 or 2.\n");
-    exit(1);
-  }
-  if(f == NULL){
-    perror("");
     exit(1);
   }
   return f;
@@ -291,16 +295,16 @@ int main(int argc, char* argv[]){
   char l[MAX_LINE_LENGTH];
   int lineNumber = 1;
   list* ids = list_create();
-  
+
   while(fgets(l, sizeof(l), f) != NULL){
     splitLine(l, lineNumber, ids);
     lineNumber++;
   }
   displayInfo(ids);
-  
+
   removeNames(ids);
   list_free(ids);
   fclose(f);
- 
-  return 0;
+
+  return exitStatus;
 }
