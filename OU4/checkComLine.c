@@ -4,13 +4,15 @@
 #include <stdbool.h>
 #include "checkComLine.h"
 
-// Prints out a common error message
+/* Prints a string containing a common error message. */
 void standardErrorMessage(){
 	fprintf(stderr,"Usage: mfind [-t type] "
 		"[-p nrthr] start1 [start2 ...] name\n");
 }
 
-// Prints a relevant error message
+/* Handles a variety of errors that may arise when calling mfind.
+- errno: An integer value corresponding to the type of error that was made. The error codes are not sorted in any particular order.
+*/
 void errorHandler(int errno){
 	if(errno == 1){
 		fprintf(stderr, "Too few arguments.\n");
@@ -22,7 +24,7 @@ void errorHandler(int errno){
 		fprintf(stderr,"Invalid type specified. "
 		"Must be either 'd'(directory), 'f'(file) "
 		"or 'l'(link).\n");
-		exit(2);	
+		exit(2);
 	}
 
 	else if (errno == 3){
@@ -38,28 +40,15 @@ void errorHandler(int errno){
 	}
 }
 
-/*	Checks wheter a given number of arguments is valid
-	- argc: The number of arguments
-	- flagValue: The return value of a certain mode
-	- minArgs: The minimum number of arguments required 
-		corresponding to the mode
-*/
-int checkNumberArguments(int argc, int minArgs, int flagValue){
-	if(argc < minArgs){
-		int errno = 1;
-		errorHandler(errno);
-	}
-	return flagValue;
-}
-
 /* Checks the validity of the user input.
 	- argc: The number of arguments
 	- argv: string array with the arguments
 	- returns: int value depending on which flags have been given:
-		* 0 if no flags are given
-		* 1 if only type is given
-		* 2 if only nrthreads are given
-		* 3 if both type and nrthreads are given
+		* 0 if no flags are given.
+		* 1 if only type is given.
+		* 2 if only nrthreads are given.
+		* 3 if both type and nrthreads are given.
+If any errors occur, they are passed to the error handler.
 */
 int checkGivenFlags(int argc, char* argv[]){
 	int errno;
@@ -77,7 +66,7 @@ int checkGivenFlags(int argc, char* argv[]){
 				}
 			}
 			else if (!strcmp(argv[i], "-p")){
-				if((!typeGiven && i == 1) || 
+				if((!typeGiven && i == 1) ||
 					(typeGiven && i == 3)){
 					nrthreadsGiven = true;
 				}
@@ -87,7 +76,7 @@ int checkGivenFlags(int argc, char* argv[]){
 				}
 			}
 		}
-		
+
 		// No flags given
 		if(!typeGiven && !nrthreadsGiven){
 			mode = checkNumberArguments(argc, 3, 0);
@@ -115,11 +104,26 @@ int checkGivenFlags(int argc, char* argv[]){
 	return mode;
 }
 
+/*	Checks wheter a given number of arguments is valid for a specified command line setup.
+	- argc: The number of arguments
+	- mode: an integer value corresponding to the command line setup. See checkGivenFlags for interpretation.
+	- minArgs: The minimum number of arguments required
+		for the given the mode (e.g. 3 for mode 0)
+*/
+int checkNumberArguments(int argc, int minArgs, int mode){
+	if(argc < minArgs){
+		int errno = 1;
+		errorHandler(errno);
+	}
+	return mode;
+}
 
-/* 
-	Check if the type is correctly specified. The error 
-	handler function is invoced if the type is not valid.
-	- type: The user supplied type
+/* Checks whether a user supplied type has been correctly specified.
+	- type: The user supplied type argument. Must be one of the following:
+		* 'd' (directory)
+		* 'f' (file)
+		* 'l' (link)
+	- returns: The type as a char, if it is valid. Invalid types are passed to the error handler.
 */
 char checkType(char* type){
 	int errno;
@@ -129,7 +133,7 @@ char checkType(char* type){
 	}
 
 	char* validTypes = "fld";
-	bool validType = false; 
+	bool validType = false;
 	for(int i = 0; i < NUM_VALID_TYPE_FLAGS; i++){
 		if(strchr(type, validTypes[i])){
 			validType = true;
@@ -144,9 +148,12 @@ char checkType(char* type){
 	return type[0];
 }
 
-/**/
+/* Checks whether a user supplied number of threads is valid.
+	- nrthr: The user supplied argument.
+	- returns: The number of threads, if correctly specified (i.e. a positive and non-zero integer.) Any error is passed to the error handler.
+*/
 int checkNrthr(char* nrthr){
-	
+
 	int errno;
   	char* p;
 
@@ -158,7 +165,11 @@ int checkNrthr(char* nrthr){
   	return intPart;
 }
 
-/**/
+/* Puts a correctly formatted command line into a command structure.
+	- argc: The number of arguments.
+	- argv: Vector with the arguments.
+	- mode: An integer value as specified in checkGivenFlags.
+*/
 command* getCommand(int argc, char* argv[], int mode){
 	// Standard values, no flags given
 	command* c;
@@ -178,7 +189,7 @@ command* getCommand(int argc, char* argv[], int mode){
 		nrthr = checkNrthr(argv[2]);
 	}
 
-	// Type and number of threads specified 
+	// Type and number of threads specified
 	else if(mode == 3){
 		nStarts = argc - 6;
 		t = checkType(argv[2]);
@@ -190,6 +201,7 @@ command* getCommand(int argc, char* argv[], int mode){
 	c -> type = t;
 	c -> nrthr = nrthr;
 	c -> name = argv[argc - 1];
+	c -> nStarts = nStarts;
 	for (int i = 0; i < nStarts; i++){
 		c -> start[i] = argv[argc - nStarts - 1 + i];
 	}
