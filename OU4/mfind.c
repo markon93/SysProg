@@ -22,7 +22,7 @@ pthread_mutex_t m;
 
 int isRegularFile(const char *path){
     struct stat path_stat;
-    stat(path, &path_stat);
+    lstat(path, &path_stat);
     return S_ISREG(path_stat.st_mode);
 }
 
