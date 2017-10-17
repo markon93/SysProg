@@ -15,14 +15,17 @@ pthread_mutex_t m;
 /* Checks if a given path is a regular file or not. */
 int isRegularFile(const char *path){
     struct stat path_stat;
-    lstat(path, &path_stat);
-    return S_ISDIR(path_stat.st_mode);
+    lstat(path, &path_stat);     // THIS SHOULD BE LSTAT!!
+    return S_ISREG(path_stat.st_mode);
 }
 
 void* traverse(void* com){
 	command* c = (command*) com;
 	int numDirs = 0;
 
+  // COPY THE NAME OF THE FILE, OTHERWISE STRCPY SETS IT TO NULL FOR SOME REASON.
+//  char* name = malloc(strlen(c->name)*sizeof(c->name));
+//  name = strcpy(name, c->name);
 	while(true){
 		pthread_mutex_lock(&m);
 
@@ -31,11 +34,11 @@ void* traverse(void* com){
 		if(!q_isEmpty(c -> dirQueue)){
 			dir = q_peek(c -> dirQueue);
 		}
-		 else if(q_isEmpty(c -> dirQueue)){
-     	 	printf("Empty\n");
-      		pthread_mutex_unlock(&m);
-     	 	break;
-    	}
+
+		else{
+			pthread_mutex_unlock(&m);
+			break;
+		}
 		q_dequeue(c -> dirQueue);
 
 		// If the queue is not empty, let the other threads continue, else the
@@ -57,53 +60,49 @@ void* traverse(void* com){
 			exit(5);
 		}
 
-    char* dirWithSlash = (char*)malloc(strlen(dir)*sizeof(dir) + 1);
-    strcpy(dirWithSlash, dir);
-
-    dirWithSlash = strcat(dirWithSlash,"/");
+    char* dirCopy = malloc(strlen(dir)*sizeof(dir) + 1);
+    dirCopy = strcat(dir, "/");
 
 		while((pDirent = readdir(d)) != NULL){
 			if(strcmp(pDirent -> d_name, ".") &&
       strcmp(pDirent -> d_name, "..")){
 
-        char* fullPath = (char*)malloc(strlen(dirWithSlash)*sizeof(dirWithSlash)+
-      strlen(pDirent -> d_name)*sizeof(pDirent -> d_name));
-        strcpy(fullPath, dirWithSlash);
-        fullPath = strcat(fullPath, pDirent -> d_name);
+        char* fullPath = malloc(strlen(dirCopy)*sizeof(dirCopy) + strlen(pDirent ->d_name)*sizeof(pDirent ->d_name));
 
-        char* fullPathCopy = malloc(strlen(fullPath)*sizeof(fullPath));
-        strcpy(fullPathCopy, fullPath);
+        fullPath = strcat(dirCopy, pDirent -> d_name);
+        printf("FULL PATH: %s\n",fullPath);
+        printf("DIR_COPY: %s\n",dirCopy);
 
-		struct stat path_stat;
-    	lstat(fullPath, &path_stat);
-    	
-		// Add new directories to queue if there are any
-		if(S_ISDIR(path_stat.st_mode)){
-			q_enqueue(c -> dirQueue, fullPathCopy);
- 	   	}
-
-		// If the filename is in the current directory, print out the path.
-		if(!strcmp(c -> name, pDirent -> d_name)){
-				if((S_ISREG(path_stat.st_mode) && (c -> type == 'f')) ||
-					(S_ISDIR(path_stat.st_mode) && (c -> type == 'd'))||
-					(S_ISLNK(path_stat.st_mode) && (c -> type == 'l'))){
-					printf("\n%s\n",fullPathCopy);
+				// Add new directories to queue if there are any
+				if(!isRegularFile(fullPath)){
+					q_enqueue(c -> dirQueue, fullPath);
 				}
-		}
-        free(fullPath);
+
+				// If the filename is in the current directory, print out the path.
+				if(!strcmp(c -> name, pDirent -> d_name)){
+						if((isRegularFile(fullPath) && (c -> type == 'f')) ||
+							(!isRegularFile(fullPath) && (c -> type == 'd'))){
+
+							printf("FOUND YA!!!");
+							printf("\n%s\n",fullPath);
+						}
+				}
+        //memset(fullPath,0,sizeof(fullPath));
+        //free(fullPath);
       }
+
 		}
 		closedir(d);
-    free(dirWithSlash);
-    
-    if(!isUnlocked){
-		pthread_mutex_unlock(&m);
-	}
 
-  }
+		if(!isUnlocked){
+			pthread_mutex_unlock(&m);
+		}
+	}
 	printf("Thread: %lu Reads: %d\n", pthread_self(), numDirs);
+//  free(name);
   return NULL;
 }
+
 
 /* Create a specified number of threads */
 void createThreads(command* c){
@@ -137,10 +136,17 @@ int main(int argc, char* argv[]){
 
 	createThreads(c);
 
-  q_free(c -> dirQueue);
-  free(c);
+	printf("\n\n\n");
+	int rr = 0;
+	while(!q_isEmpty(c -> dirQueue)){
+		printf("q(%d) = %s\n",rr, (char*)q_peek(c -> dirQueue));
+		q_dequeue(c -> dirQueue);
+		rr++;
+	}
 
-  return 0;
+	q_free(c -> dirQueue);
+	free(c);
+	return 0;
 }
 
 /*
