@@ -78,7 +78,8 @@ void* traverse(void* com){
     	lstat(fullPath, &path_stat);
     	
 		// Add new directories to queue if there are any
-		if(S_ISDIR(path_stat.st_mode)){
+		if(S_ISDIR(path_stat.st_mode) && 
+			 (access(fullPath, R_OK) == 0)){
 			q_enqueue(c -> dirQueue, fullPathCopy);
  	   	}
 
