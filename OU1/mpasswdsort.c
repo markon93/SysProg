@@ -190,7 +190,7 @@ void splitLine(char line[], int lineNumber, list* correctIds){
 
   // Lägg in korrekt formaterade användarnamn och UIDN i lista.
   // Sortera enligt växande UID vid insättningen.
-  char* username = malloc(sizeof(username));
+  char* username = malloc(strlen(data[0])*sizeof(char) + 1);
   if(username == NULL){
 	  perror("");
 	  exit(1);

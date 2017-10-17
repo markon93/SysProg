@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -g -std=c99 -Wall
+CFLAGS = -g -std=gnu11 -Wall 
 
 default: mpasswdsort
 
