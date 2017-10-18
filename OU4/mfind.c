@@ -11,7 +11,7 @@
 
 pthread_mutex_t m;
 
-/* Checks if a given path is a regular file or not. */
+/* Checks if a given path is a regular file or no. */
 int isRegularFile(const char *path){
     struct stat path_stat;
     lstat(path, &path_stat);
