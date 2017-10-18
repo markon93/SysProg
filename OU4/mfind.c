@@ -6,7 +6,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <fcntl.h>
 #include "queue.h"
 #include "checkComLine.h"
 
@@ -32,7 +31,6 @@ void* traverse(void* com){
 			dir = q_peek(c -> dirQueue);
 		}
 		 else if(q_isEmpty(c -> dirQueue)){
-     	 	printf("Empty\n");
       		pthread_mutex_unlock(&m);
      	 	break;
     	}
@@ -76,27 +74,27 @@ void* traverse(void* com){
 
 		struct stat path_stat;
     	lstat(fullPath, &path_stat);
-    	
+
 		// Add new directories to queue if there are any
-		if(S_ISDIR(path_stat.st_mode) && 
+		if(S_ISDIR(path_stat.st_mode) &&
 			 (access(fullPath, R_OK) == 0)){
 			q_enqueue(c -> dirQueue, fullPathCopy);
  	   	}
 
 		// If the filename is in the current directory, print out the path.
 		if(!strcmp(c -> name, pDirent -> d_name)){
-				if((S_ISREG(path_stat.st_mode) && (c -> type == 'f')) ||
-					(S_ISDIR(path_stat.st_mode) && (c -> type == 'd'))||
-					(S_ISLNK(path_stat.st_mode) && (c -> type == 'l'))){
-					printf("\n%s\n",fullPathCopy);
-				}
+			if((S_ISREG(path_stat.st_mode) && (c -> type == 'f')) ||
+				(S_ISDIR(path_stat.st_mode) && (c -> type == 'd'))||
+				(S_ISLNK(path_stat.st_mode) && (c -> type == 'l'))){
+				printf("\n%s\n",fullPathCopy);
+			}
 		}
         free(fullPath);
       }
-		}
-		closedir(d);
+	}
+	closedir(d);
     free(dirWithSlash);
-    
+
     if(!isUnlocked){
 		pthread_mutex_unlock(&m);
 	}
@@ -127,30 +125,19 @@ int main(int argc, char* argv[]){
 	int mode = checkGivenFlags(argc, argv);
 	command* c = getCommand(argc, argv, mode);
 
-
-/*
-	printf("t: %c\n", c -> type);
-	printf("nrt: %d\n", c -> nrthr);
-	printf("start 0: %s \n", (char*)q_peek(c -> dirQueue));
-	printf("name: %s \n",c -> name);
-	printf("nStarts: %d\n\n\n", c -> nStarts);
-*/
-
 	createThreads(c);
 
-  q_free(c -> dirQueue);
-  free(c);
+    q_free(c -> dirQueue);
+  	free(c);
 
-  return 0;
+	return 0;
 }
+
 
 /*
-
-int rr = 0;
-while(!q_isEmpty(c -> dirQueue)){
-	printf("q(%d) = %s\n",rr, (char*)q_peek(c -> dirQueue));
-	q_dequeue(c -> dirQueue);
-	rr++;
-}
+--------- TODO ------------
+* Make threads run parallel (right now constant time indep. of number of threads)
+* Memory leak; malloc(fullpathcopy) never freed
+* Make checkComLine use getopt
 
 */
