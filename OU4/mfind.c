@@ -12,7 +12,7 @@
 
 pthread_mutex_t m;
 
-/* Checks if a given path is a regular file or not. */
+/* Checks if a given path is a regular file or no. */
 int isRegularFile(const char *path){
     struct stat path_stat;
     lstat(path, &path_stat);
@@ -76,9 +76,9 @@ void* traverse(void* com){
 
 		struct stat path_stat;
     	lstat(fullPath, &path_stat);
-    	
+
 		// Add new directories to queue if there are any
-		if(S_ISDIR(path_stat.st_mode) && 
+		if(S_ISDIR(path_stat.st_mode) &&
 			 (access(fullPath, R_OK) == 0)){
 			q_enqueue(c -> dirQueue, fullPathCopy);
  	   	}
@@ -96,7 +96,7 @@ void* traverse(void* com){
 		}
 		closedir(d);
     free(dirWithSlash);
-    
+
     if(!isUnlocked){
 		pthread_mutex_unlock(&m);
 	}
