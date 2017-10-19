@@ -17,9 +17,9 @@ void q_dequeue(queue* q){
 void q_enqueue(queue* q, void* element){
 	node* n = list_first(q);
 
-	while(!list_end(q,n)){
-		n = list_next(q,n);
-	}
+	//while(!list_end(q,n)){
+	//	n = list_next(q,n);
+	//}
 	list_insert(q, n, element);
 }
 
