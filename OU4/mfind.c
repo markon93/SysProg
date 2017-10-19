@@ -82,7 +82,7 @@ void* traverse(void* com){
           if(S_ISDIR(path_stat.st_mode) &&
           (access(fullPath, R_OK) == 0)){
             q_enqueue(c -> dirQueue, fullPathCopy);
-            pthread_cond_broadcast(&cond);
+            pthread_cond_signal(&cond);
           }
 
           // If the filename is in the current directory, print out the path.
