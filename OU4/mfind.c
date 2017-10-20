@@ -89,8 +89,9 @@ void* traverse(void* com){
           if(!strcmp(c -> name, pDirent -> d_name)){
             if((S_ISREG(path_stat.st_mode) && (c -> type == 'f')) ||
             (S_ISDIR(path_stat.st_mode) && (c -> type == 'd'))||
-            (S_ISLNK(path_stat.st_mode) && (c -> type == 'l'))){
-              printf("\n%s\n",fullPathCopy);
+            (S_ISLNK(path_stat.st_mode) && (c -> type == 'l'))||
+            (c -> type == 'a')) {
+              printf("%s\n",fullPathCopy);
             }
           }
           free(fullPath);
@@ -130,7 +131,6 @@ int main(int argc, char* argv[]){
   command* c = getCommand(argc, argv, mode);
 
   createThreads(c);
-  printf("READY TO RETURN\n");
   q_free(c -> dirQueue);
   free(c);
 

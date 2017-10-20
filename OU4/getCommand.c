@@ -45,64 +45,29 @@ void errorHandler(int errno){
 	- argc: The number of arguments
 	- argv: string array with the arguments
 	- returns: int value depending on which flags have been given:
-		* 0 if no flags are given.
-		* 1 if only type is given.
-		* 2 if only nrthreads are given.
-		* 3 if both type and nrthreads are given.
-If any errors occur, they are passed to the error handler.
+	* 0 if no flags are given.
+	* 1 if only type is given.
+	* 2 if only nrthreads are given.
+	* 3 if both type and nrthreads are given.
+	If any errors occur, they are passed to the error handler.
 */
-int checkGivenFlags(int argc, char* argv[]){
-	int errno;
-	int mode;
-	bool typeGiven = false, nrthreadsGiven = false;
-	if(argc >= 3){
-		for(int i = 0; i < argc; i++){
-			if(!strcmp(argv[i], "-t")){
-				if(i == 1){
-					typeGiven = true;
-				}
-				else{
-					errno = 3;
-					errorHandler(errno);
-				}
-			}
-			else if (!strcmp(argv[i], "-p")){
-				if((!typeGiven && i == 1) ||
-					(typeGiven && i == 3)){
-					nrthreadsGiven = true;
-				}
-				else{
-					errno = 3;
-					errorHandler(errno);
-				}
-			}
+int checkGivenFlags(int argc, char* argv[], command c){
+	while ((opt = getopt(argc, argv, "t:p:")) != -1) {
+		if(opt == 't'){
+			char type = checkType(opt);
+			c -> type = type;
+		}
+		else if(opt == 'p'){
+			int nrthr = checkNrthr(opt);
+			c -> nrthr = nrthr;
 		}
 
-		// No flags given
-		if(!typeGiven && !nrthreadsGiven){
-			mode = checkNumberArguments(argc, 3, 0);
-		}
-
-		// Only -t given
-		else if(typeGiven && !nrthreadsGiven){
-			mode = checkNumberArguments(argc, 5, 1);
-		}
-
-		// Only -t given
-		else if(!typeGiven && nrthreadsGiven){
-			mode = checkNumberArguments(argc, 5, 2);
-		}
-
-		// Both flags given
-		else {
-			mode = checkNumberArguments(argc, 7, 3);
+		else{
+			fprintf(stderr,"Invalid flag.\n");
+			standardErrorMessage();
+			exit(5);
 		}
 	}
-	else{
-		errno = 1;
-		errorHandler(errno);
-	}
-	return mode;
 }
 
 /*	Checks wheter a given number of arguments is valid for a specified command line setup.
@@ -172,34 +137,11 @@ int checkNrthr(char* nrthr){
 	- mode: An integer value as specified in checkGivenFlags.
 */
 command* getCommand(int argc, char* argv[], int mode){
-	// Standard values, no flags given
-	command* c;
+
 	int nStarts = argc - 2;
-	char t = 'a';
-	int nrthr = 1;
-
-	// Type specified
-	if(mode == 1){
-		nStarts = argc - 4;
-		t = checkType(argv[2]);
-	}
-
-	// Number of threads specified
-	else if(mode == 2){
-		nStarts = argc - 4;
-		nrthr = checkNrthr(argv[2]);
-	}
-
-	// Type and number of threads specified
-	else if(mode == 3){
-		nStarts = argc - 6;
-		t = checkType(argv[2]);
-		nrthr = checkNrthr(argv[4]);
-	}
+	command* c = malloc(sizeof(*c) + (nStarts)*sizeof(char*));
 
 	// Place the correctly formatted command in a struct.
-	c = malloc(sizeof(*c) + (nStarts)*sizeof(char*));
-	c -> type = t;
 	c -> nrthr = nrthr;
 	c -> name = argv[argc - 1];
 	c -> nStarts = nStarts;
