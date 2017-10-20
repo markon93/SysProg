@@ -41,7 +41,7 @@ void* q_peek(queue* q);
 
 /* Deletes all of the elements in a queue and removes it from memory.
 	- q: The queue.
-	- returns: 0 if successful, -1 otherwise. 
+	- returns: 0 if successful, -1 otherwise.
 */
 void q_free(queue* q);
 

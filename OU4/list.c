@@ -75,7 +75,12 @@ bool list_end(list* l, node* pos){
   - returnerar: pekare till nästa nod
 */
 node* list_next(list* l, node* pos){
+  if (pos -> next != NULL){
     return pos -> next;
+  }
+  else{
+    return NULL;
+  }
 }
 
 /*

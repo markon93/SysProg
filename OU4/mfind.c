@@ -12,9 +12,15 @@
 pthread_mutex_t m;
 pthread_mutex_t mWait;
 pthread_cond_t cond;
-
 int waitingThreads = 0, threadsDone = 0;
-/**/
+
+/* This function applies the bredth-first search algorithm with specified
+directories as the starting queue. A directory is picked from the queue, and
+new subdirectories are added to the queue as the threads traverse the file
+tree. This goes on until it is certain that all directories have been traversed.
+- com: A structure with all parameters and flags.
+- returns: The NULL pointer, output is printed to stdout.
+*/
 void* traverse(void* com){
   command* c = (command*) com;
   int numDirs = 0;
@@ -48,6 +54,7 @@ void* traverse(void* com){
 
       q_dequeue(c -> dirQueue);
       pthread_mutex_unlock(&m);
+
       // Read the files in the directory
       // If the file is a directory, put it in the queue
       struct dirent *pDirent;
@@ -79,10 +86,17 @@ void* traverse(void* com){
           lstat(fullPath, &path_stat);
 
           // Add new directories to queue if there are any
-          if(S_ISDIR(path_stat.st_mode) &&
-          (access(fullPath, R_OK) == 0)){
-            q_enqueue(c -> dirQueue, fullPathCopy);
-            pthread_cond_signal(&cond);
+          if(S_ISDIR(path_stat.st_mode)){
+            if((access(fullPathCopy, R_OK) == 0)){
+              pthread_mutex_lock(&m);
+              q_enqueue(c -> dirQueue, fullPathCopy);
+              pthread_mutex_unlock(&m);
+              pthread_cond_signal(&cond);
+            }
+            else{
+              fprintf(stderr, "%s: Permission denied.\n", fullPathCopy);
+              continue;
+            }
           }
 
           // If the filename is in the current directory, print out the path.
@@ -115,7 +129,6 @@ void createThreads(command* c){
   traverse(c);
 
   while(threadsDone != c -> nrthr){
-    sleep(0.1);
     pthread_cond_signal(&cond);
   }
 
