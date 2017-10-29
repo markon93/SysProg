@@ -9,7 +9,7 @@
  */
 int dupPipe(int pip[2], int end, int destfd){
 	if(end == READ_END){
-		destfd = dup2(pip[READ_END], destfd);
+		dup2(pip[READ_END], destfd);
 		close(pip[READ_END]);
 		close(pip[WRITE_END]);
 	}

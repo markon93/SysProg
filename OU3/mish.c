@@ -1,9 +1,9 @@
-/*	mish.c: An implementation of a simple shell. There are two internal 
-	command implementations, echo and cd, which behave similarly as the 
-	internal commands in a unix shell. The shell can also handle the 
+/*	mish.c: An implementation of a simple shell. There are two internal
+	command implementations, echo and cd, which behave similarly as the
+	internal commands in a unix shell. The shell can also handle the
 	execution of external commands, redirecting their input and output,
 	and using pipes for communication between them.
-	
+
 	Author: Marko Nygård (oi12mnd)
 	Laboration 3 Systemnära Programmering HT17
 */
@@ -40,174 +40,111 @@ void echo(int argc, char* argv[]){
    - newDirectory: the directory to change to
 */
 void cd(char* newDirectory){
-	int tryChangeDir = chdir(newDirectory);
-	if(tryChangeDir != 0){
+	if(chdir(newDirectory) != 0){
 		perror(newDirectory);
 	}
 }
 
-int main (int argc, char * argv[]){
-	// Create a signal handler
-  	signal(SIGINT, sighant);
+/* Write out a prompt */
+void writePrompt(){
+	fprintf(stderr, "mish%% ");
+	if(fflush(stderr) != 0){
+		perror("");
+		exit(1);
+	}
+}
 
-	pid_t parentPid = getpid();
+/* Get the full command */
+int getCommands(command commandLine[]){
+	int numberOfCommands = -1;
+
+	// Scan the command line
+	char input[MAXLINELEN + 1];
+	if(fgets(input, MAXLINELEN + 1, stdin) == NULL){
+		fprintf(stderr,"Error reading the command.\n");
+	}
+
+	else{
+		// Parse the command line
+		numberOfCommands = parse(input, commandLine);
+	}
+
+	return numberOfCommands;
+}
+
+/* Check if it is an internal command */
+bool isInternal(char* firstCommand){
+	if(!strcmp(firstCommand, "echo") || !strcmp(firstCommand, "cd")){
+		return true;
+	}
+	else{
+		return false;
+	}
+}
+
+/* Execute internal commands, i.e. cd and echo */
+void executeInternal(int numberOfCommands, command commandLine[]){
+	command c = commandLine[0];
+	if(!strcmp(c.argv[0],"echo")){
+		echo(c.argc, c.argv);
+	}
+	else if(!strcmp(c.argv[0], "cd")){
+		cd(c.argv[1]);
+	}
+}
+
+/* Create a number of pipes */
+void createPipes(){
+
+}
+
+/* Execute external commands */
+void executeExternal(int numberOfCommands, command commandLine[]){
+
+	createPipes();
+
+}
+
+
+
+/* Execute commands given by the user. */
+void executeCommands(int numberOfCommands, command commandLine[]){
+	if (numberOfCommands > 0){
+			if(isInternal(commandLine[0].argv[0])){
+				executeInternal(numberOfCommands, commandLine);
+			}
+
+			else{
+				executeExternal(numberOfCommands, commandLine);
+			}
+	}
+
+
+
+	// Enter pressed -> new prompt.
+	else{
+		return;
+	}
+}
+
+
+int main(int argc, char* argv[]){
+	// Create a signal handler
+  signal(SIGINT, sighant);
+
+	// Main loop
 	while(true){
 		signalReceived = 0;
-
-	  	// Write a prompt
-		fprintf(stderr, "mish%% ");
-		int tryFlush = fflush(stderr);
-		if(tryFlush != 0){
-			perror("");
+		writePrompt();
+		command commandLine[MAXCOMMANDS + 1];
+		int numberOfCommands = getCommands(commandLine);
+		if (numberOfCommands == -1){
 			exit(1);
 		}
-
-		// Scan the command line
-		char input[MAXLINELEN + 1];
-		if(fgets(input, MAXLINELEN + 1, stdin) == NULL){
-			perror("");
-			return(0);
-		}
-
-		// Parse the command line
-		command commandLine[MAXCOMMANDS + 1];
-		int numberOfCommands = parse(input, commandLine);
-
-		// Shared memory variable for connecting child pid to command number
-		int *childPids = mmap(NULL, numberOfCommands*sizeof(int), PROT_READ|PROT_WRITE, MAP_ANON|MAP_SHARED, -1, 0);
-
-		// Enter pressed: new prompt
-		if (numberOfCommands == 0){
-			continue;
-		}
-
-		// Get command
-		command c = commandLine[0];
-
-		// Check whether the command is external or internal
-		// Internal = 0; external = 1.
-		if(strcmp(c.argv[0], "echo") == 0|| strcmp(c.argv[0], "cd") == 0){
-			c.internal = 0;
-		}
 		else{
-			c.internal = 1;
-		}
-
-		// Execute internal command
-		if(c.internal == 0){
-			// echo command
-			if(strcmp(c.argv[0], "echo") == 0){
-				echo(c.argc, c.argv);
-				continue;
-			}
-
-			// cd command
-			else if(strcmp(c.argv[0], "cd") == 0){
-				cd(c.argv[1]);
-				continue;
-			}
-		}
-
-		else {
-			// Create pipes
-			int fd[numberOfCommands - 1][2];
-			for(int i = 0; i < numberOfCommands - 1; i++){
-				if(pipe(fd[i]) != 0){
-					perror("pipe");
-					exit(1);
-				}
-			}
-
-			// Create child processes
-			for(int i = 0; i < numberOfCommands; i++){
-				int pid = fork();
-
-				if(pid < 0){
-					perror("fork");
-					exit(1);					
-				}				
-
-				else if (pid == 0){
-					break;
-				}
-
-				else{
-					childPids[i] = pid;					
-				}
-			}
-		
-			// Execute all the child processes
-			if(getpid() != parentPid){
-				printf("Child %d ready.\n",getpid());
-
-				int j;
-				for(j = 0; j < numberOfCommands; j++){
-					if(getpid() == childPids[j]){					
-						c = commandLine[j];
-						break;
-					}
-				}
-				
-				if(c.outfile != NULL){
-					if(redirect(c.outfile, 0, STDIN_FILENO) == -1){
-						perror(c.outfile);
-					}
-				}
-
-				if(c.infile != NULL){
-					if(redirect(c.infile, 1, STDOUT_FILENO) == -1){
-						perror(c.outfile);
-					}
-				}
-				printf("Child %d, index %d, command %s\n", j, getpid(), c.argv[0]);
-				if(numberOfCommands > 1){
-					if(j == 0){
-						dupPipe(fd[j], WRITE_END, STDOUT_FILENO);
-						fprintf(stderr,"Child %d duping write.\n", getpid());
-					}
-
-					else if(j == numberOfCommands - 1){
-						dupPipe(fd[j - 1], READ_END, STDIN_FILENO);
-						fprintf(stderr,"Child %d duping read.\n", getpid());
-					}
-					else{
-						fprintf(stderr,"Child %d duping read and write.\n", getpid());	
-						dupPipe(fd[j - 1], READ_END, STDIN_FILENO);
-						dupPipe(fd[j], WRITE_END, STDOUT_FILENO);
-					}
-				}
-				if(execvp(c.argv[0], c.argv) == -1){
-					perror("exec");					
-					return -1;
-				}
-			}
-
-			if(getpid() != parentPid){
-				return(0);			
-			}			
-
-			if(getpid() == parentPid){	
-				for(int j = 0; j < numberOfCommands; j++){
-					int s;						
-					waitpid(childPids[j], &s, 0);					
-				}
-			}
-			
-			for(int k = 0; k < numberOfCommands - 1; k++){
-				close(fd[k][0]);
-				close(fd[k][1]);
-			}
-
-			// Avsluta alla barnprocesser på signal ctrl+c
-			if(getpid() == parentPid && signalReceived == 1 &&
-				childPids != NULL){
-				for (int i = 0; i < numberOfCommands; i++){
-					printf("Control C pressed.\n");
-					kill(childPids[i], SIGKILL);
-				}
-			}
+			executeCommands(numberOfCommands, commandLine);
 		}
 	}
-  	printf("\n");
-  	return 0;
+
+	return 0;
 }
