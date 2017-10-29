@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -g -Wall
+CFLAGS = -g -std=gnu11 -Wall
 
 default: mish
 
