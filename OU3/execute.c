@@ -10,13 +10,10 @@
 int dupPipe(int pip[2], int end, int destfd){
 	if(end == READ_END){
 		dup2(pip[READ_END], destfd);
-		close(pip[READ_END]);
-		close(pip[WRITE_END]);
 	}
+
 	else if(end == WRITE_END){
 		dup2(pip[WRITE_END], destfd);
-		close(pip[WRITE_END]);
-		close(pip[READ_END]);
 	}
 
 	else{
@@ -38,7 +35,7 @@ int dupPipe(int pip[2], int end, int destfd){
  */
 int redirect(char *filename, int flags, int destfd){
 	// Open file descriptor for writing
-	if(flags == 0){
+	if(flags == STDOUT_FILENO){
 		  destfd = open(filename, O_WRONLY| O_CREAT, 0666);
 			dup2(destfd, STDOUT_FILENO);
 			close(destfd);
@@ -46,7 +43,7 @@ int redirect(char *filename, int flags, int destfd){
 	}
 
 	// Open for reading
-	else if(flags == 1){
+	else if(flags == STDIN_FILENO){
 		destfd = open(filename, O_RDONLY, 0666);
 		dup2(destfd, STDIN_FILENO);
 		close(destfd);

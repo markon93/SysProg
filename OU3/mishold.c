@@ -65,7 +65,7 @@ int main (int argc, char * argv[]){
 		// Scan the command line
 		char input[MAXLINELEN + 1];
 		if(fgets(input, MAXLINELEN + 1, stdin) == NULL){
-			fprintf("Error reading the command.\n");
+			fprintf(stderr,"Error reading the command.\n");
 			continue;
 		}
 

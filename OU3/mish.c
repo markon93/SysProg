@@ -31,7 +31,10 @@ int signalReceived = 0;
 */
 void echo(int argc, char* argv[]){
 	for(int i = 1; i < argc; i++){
-			printf("%s ", argv[i]);
+			printf("%s", argv[i]);
+			if(i != argc - 1){
+				printf(" ");
+			}
 	}
 	printf("\n");
 }
@@ -58,15 +61,13 @@ void writePrompt(){
 int getCommands(command commandLine[]){
 	int numberOfCommands = -1;
 
-	// Scan the command line
+	// Scan and parse the command line
 	char input[MAXLINELEN + 1];
-	if(fgets(input, MAXLINELEN + 1, stdin) == NULL){
-		fprintf(stderr,"Error reading the command.\n");
-	}
-
-	else{
-		// Parse the command line
+	if(fgets(input, MAXLINELEN + 1, stdin) != NULL){
 		numberOfCommands = parse(input, commandLine);
+	}
+	else{
+		fprintf(stderr,"\n");
 	}
 
 	return numberOfCommands;
@@ -94,15 +95,103 @@ void executeInternal(int numberOfCommands, command commandLine[]){
 }
 
 /* Create a number of pipes */
-void createPipes(){
+void createPipes(int numberOfPipes, int pipeArray[][2]){
+	for(int i = 0; i < numberOfPipes; i++){
+		if(pipe(pipeArray[i]) != 0){
+			perror("pipe");
+			exit(1);
+		}
+	}
+}
 
+
+void dupChild(int childNumber, int numberOfChildren, int pipeArray[][2]){
+	if(childNumber == 0){
+		dupPipe(pipeArray[childNumber], WRITE_END, STDOUT_FILENO);
+	}
+
+	else if(childNumber == numberOfChildren - 1){
+		dupPipe(pipeArray[childNumber - 1], READ_END, STDIN_FILENO);
+	}
+	else{
+		dupPipe(pipeArray[childNumber - 1], READ_END, STDIN_FILENO);
+		dupPipe(pipeArray[childNumber], WRITE_END, STDOUT_FILENO);
+	}
+
+	for(int i = 0; i < numberOfChildren - 1; i++){
+		close(pipeArray[i][0]);
+		close(pipeArray[i][1]);
+	}
+}
+
+
+/* Create a number of child processes */
+void createChildren(int numberOfChildren, pid_t childPids[], command commandLine[], int pipeArray[][2]){
+
+	for (int i = 0; i < numberOfChildren; i++){
+		pid_t pid = fork();
+		if(pid < 0){
+			perror("fork");
+			exit(1);
+		}
+		else if (pid == 0){
+
+			command c = commandLine[i];
+
+			// Redirect input if needed
+			if(c.infile != NULL){
+				if(redirect(c.infile, 0, STDIN_FILENO) == -1){
+					perror(c.infile);
+					exit(1);
+				}
+			}
+
+			// Redirect output if needed
+			if(c.outfile != NULL){
+				if(redirect(c.outfile, 1, STDOUT_FILENO) == -1){
+					perror(c.outfile);
+					exit(1);
+				}
+			}
+
+			if(numberOfChildren > 1){
+				dupChild(i, numberOfChildren, pipeArray);
+			}
+
+			execvp(c.argv[0], c.argv);
+			perror("exec");
+			exit(1);
+		}
+		else{
+			childPids[i] = pid;
+		}
+	}
 }
 
 /* Execute external commands */
 void executeExternal(int numberOfCommands, command commandLine[]){
+	int numberOfPipes = numberOfCommands - 1;
+	int pipeArray[numberOfPipes][2];
+	pid_t childPids[numberOfCommands];
 
-	createPipes();
+	createPipes(numberOfPipes, pipeArray);
+	createChildren(numberOfCommands, childPids, commandLine, pipeArray);
 
+	for(int i = 0; i < numberOfPipes; i++){
+		close(pipeArray[i][0]);
+		close(pipeArray[i][1]);
+	}
+
+	for(int i = 0; i < numberOfCommands; i++){
+		waitpid(childPids[i], NULL, 0);
+	}
+
+	// End all childd processes on signal ctrl+c
+	if(signalReceived == 1 && childPids != NULL){
+		for (int i = 0; i < numberOfCommands; i++){
+			kill(childPids[i], SIGKILL);
+		}
+	}
 }
 
 
