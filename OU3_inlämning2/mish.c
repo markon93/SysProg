@@ -27,29 +27,6 @@
 
 int signalReceived = 0;
 
-/* Echo: Displays all of its arguments to stdout
-   - argc: the number of arguments
-   - argv: string array with the arguments
-*/
-void echo(int argc, char* argv[]){
-	for(int i = 1; i < argc; i++){
-		printf("%s", argv[i]);
-		if(i != argc - 1){
-			printf(" ");
-		}
-	}
-	printf("\n");
-}
-
-/* Change the current working directory
-   - newDirectory: the directory to change to
-*/
-void cd(char* newDirectory){
-	if(chdir(newDirectory) != 0){
-		perror(newDirectory);
-	}
-}
-
 /* Write out a prompt */
 void writePrompt(){
 	fprintf(stderr, "mish%% ");
@@ -108,6 +85,29 @@ void executeInternal(int numberOfCommands, command commandLine[]){
 	}
 }
 
+/* Echo: Displays all of its arguments to stdout
+   - argc: the number of arguments
+   - argv: string array with the arguments
+*/
+void echo(int argc, char* argv[]){
+	for(int i = 1; i < argc; i++){
+		printf("%s", argv[i]);
+		if(i != argc - 1){
+			printf(" ");
+		}
+	}
+	printf("\n");
+}
+
+/* Change the current working directory
+   - newDirectory: the directory to change to
+*/
+void cd(char* newDirectory){
+	if(chdir(newDirectory) != 0){
+		perror(newDirectory);
+	}
+}
+
 /* Create a specified number of pipes.
 	- numberOfPipes: The number of pipes to create.
 	- pipeArray: An empty n-by-2 array which will hold the pipe ends, i.e.
@@ -121,34 +121,6 @@ void createPipes(int numberOfPipes, int pipeArray[][2]){
 		}
 	}
 }
-
-/* Redirect input and output between child processes. The first child dups its
-write end, the last child its read end, and the children in between both their
-read end and write end to make the chain work. When the duping is done, close
-all file descriptors not in use.
-- childNumber: The index of the child (i.e. 0 for the first child etc).
-- numberOfChildren: The total number of children.
-- pipeArray: 2d array with the pipes.
-*/
-void dupChild(int childNumber, int numberOfChildren, int pipeArray[][2]){
-	if(childNumber == 0){
-		dupPipe(pipeArray[childNumber], WRITE_END, STDOUT_FILENO);
-	}
-
-	else if(childNumber == numberOfChildren - 1){
-		dupPipe(pipeArray[childNumber - 1], READ_END, STDIN_FILENO);
-	}
-	else{
-		dupPipe(pipeArray[childNumber - 1], READ_END, STDIN_FILENO);
-		dupPipe(pipeArray[childNumber], WRITE_END, STDOUT_FILENO);
-	}
-
-	for(int i = 0; i < numberOfChildren - 1; i++){
-		close(pipeArray[i][0]);
-		close(pipeArray[i][1]);
-	}
-}
-
 
 /* Create a number of child processes
 	- numberOfChildren: The total number of children to create.
@@ -199,6 +171,33 @@ void createChildren(int numberOfChildren, pid_t childPids[],
 			// Store child pids in array
 			childPids[i] = pid;
 		}
+	}
+}
+
+/* Redirect input and output between child processes. The first child dups its
+write end, the last child its read end, and the children in between both their
+read end and write end to make the chain work. When the duping is done, close
+all file descriptors not in use.
+- childNumber: The index of the child (i.e. 0 for the first child etc).
+- numberOfChildren: The total number of children.
+- pipeArray: 2d array with the pipes.
+*/
+void dupChild(int childNumber, int numberOfChildren, int pipeArray[][2]){
+	if(childNumber == 0){
+		dupPipe(pipeArray[childNumber], WRITE_END, STDOUT_FILENO);
+	}
+
+	else if(childNumber == numberOfChildren - 1){
+		dupPipe(pipeArray[childNumber - 1], READ_END, STDIN_FILENO);
+	}
+	else{
+		dupPipe(pipeArray[childNumber - 1], READ_END, STDIN_FILENO);
+		dupPipe(pipeArray[childNumber], WRITE_END, STDOUT_FILENO);
+	}
+
+	for(int i = 0; i < numberOfChildren - 1; i++){
+		close(pipeArray[i][0]);
+		close(pipeArray[i][1]);
 	}
 }
 

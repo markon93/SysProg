@@ -5,15 +5,15 @@
 #include <dirent.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <semaphore.h>
 #include <unistd.h>
 #include "queue.h"
 #include "checkComLine.h"
 
 pthread_mutex_t m;
-pthread_mutex_t mWait;
-pthread_mutex_t mEnqueue;
-pthread_cond_t cond;
+sem_t sem;
 int waitingThreads = 0, threadsDone = 0;
+bool allDone = false;
 
 /* This function applies the bredth-first search algorithm with specified
 directories as the starting queue. A directory is picked from the queue, and
@@ -28,46 +28,52 @@ void* traverse(void* com){
 
   while(true){
     pthread_mutex_lock(&m);
-
-    if(q_isEmpty(c -> dirQueue)){
+    bool empty = q_isEmpty(c -> dirQueue);
+    pthread_mutex_unlock(&m);
+    if(empty){
       waitingThreads++;
-      pthread_mutex_unlock(&m);
       if(waitingThreads == c -> nrthr){
-        pthread_cond_broadcast(&cond);
+        allDone = true;
+        for(int i = 0; i < c->nrthr; i++){
+          sem_post(&sem);
+        }
+        break;
       }
 
-      else{
-        pthread_cond_wait(&cond, &mWait);
-        pthread_mutex_unlock(&mWait);
-      }
-
-      if(waitingThreads == c -> nrthr){
+      sem_wait(&sem);
+      if(allDone){
         break;
       }
       else{
         waitingThreads--;
-        continue;
       }
     }
-    else{
-      // Pick a directory from the directory queue
-      char* dir = q_peek(c -> dirQueue);
 
+    else{
+
+      pthread_mutex_lock(&m);
+      char* dir  = (char*)malloc(strlen(q_peek(c->dirQueue)) + 1);
+      strcpy(dir, (char*) q_peek(c -> dirQueue));
       q_dequeue(c -> dirQueue);
       pthread_mutex_unlock(&m);
 
       // Read the files in the directory
       // If the file is a directory, put it in the queue
       struct dirent *pDirent;
+
       DIR* d = opendir(dir);
       numDirs++;
       if(d == NULL){
-        perror("");
-        exit(5);
+        perror(dir);
+        free(dir);
+        continue;
       }
 
-      char* dirWithSlash = (char*)malloc(strlen(dir)*sizeof(dir) + 1);
+      char* dirWithSlash = (char*)malloc(strlen(dir) + 2);
+
       strcpy(dirWithSlash, dir);
+
+      free(dir);
 
       dirWithSlash = strcat(dirWithSlash,"/");
 
@@ -75,41 +81,46 @@ void* traverse(void* com){
         if(strcmp(pDirent -> d_name, ".") &&
         strcmp(pDirent -> d_name, "..")){
 
-          char* fullPath = (char*)malloc(strlen(dirWithSlash)*sizeof(dirWithSlash)+
-          strlen(pDirent -> d_name)*sizeof(pDirent -> d_name));
+          char* fullPath = (char*)malloc(strlen(dirWithSlash)+
+          strlen(pDirent -> d_name) + 1);
+
           strcpy(fullPath, dirWithSlash);
           fullPath = strcat(fullPath, pDirent -> d_name);
 
-          char* fullPathCopy = malloc(strlen(fullPath)*sizeof(fullPath));
+          char* fullPathCopy = malloc(strlen(fullPath)+1);
           strcpy(fullPathCopy, fullPath);
 
-          struct stat path_stat;
-          lstat(fullPath, &path_stat);
+          free(fullPath);
 
-          // Add new directories to queue if there are any
-          if(S_ISDIR(path_stat.st_mode)){
-            if((access(fullPathCopy, R_OK) == 0)){
-              pthread_mutex_lock(&mEnqueue);
-              q_enqueue(c -> dirQueue, fullPathCopy);
-              pthread_mutex_unlock(&mEnqueue);
-              pthread_cond_signal(&cond);
-            }
-            else{
-              fprintf(stderr, "%s: Permission denied.\n", fullPathCopy);
-              continue;
-            }
-          }
+          struct stat path_stat;
+          lstat(fullPathCopy, &path_stat);
 
           // If the filename is in the current directory, print out the path.
           if(!strcmp(c -> name, pDirent -> d_name)){
             if((S_ISREG(path_stat.st_mode) && (c -> type == 'f')) ||
-            (S_ISDIR(path_stat.st_mode) && (c -> type == 'd'))||
-            (S_ISLNK(path_stat.st_mode) && (c -> type == 'l'))||
-            (c -> type == 'a')) {
-              printf("%s\n",fullPathCopy);
+               (S_ISDIR(path_stat.st_mode) && (c -> type == 'd'))||
+               (S_ISLNK(path_stat.st_mode) && (c -> type == 'l'))||
+               (c -> type == 'a')) {
+                 printf("%s\n",fullPathCopy);
+             }
+           }
+
+          // Add new directories to queue if there are any
+          if(S_ISDIR(path_stat.st_mode)){
+            if((access(fullPathCopy, R_OK) == 0)){
+              pthread_mutex_lock(&m);
+              q_enqueue(c -> dirQueue, fullPathCopy);
+              pthread_mutex_unlock(&m);
+              sem_post(&sem);
+            }
+            else{
+              fprintf(stderr, "%s: Permission denied.\n", fullPathCopy);
+              free(fullPathCopy);
             }
           }
-          free(fullPath);
+          else{
+            free(fullPathCopy);
+          }
         }
       }
       closedir(d);
@@ -117,7 +128,6 @@ void* traverse(void* com){
     }
   }
   printf("Thread: %lu Reads: %d\n", pthread_self(), numDirs);
-  threadsDone++;
   return NULL;
 }
 
@@ -129,10 +139,6 @@ void createThreads(command* c){
   }
   traverse(c);
 
-  while(threadsDone != c -> nrthr){
-    pthread_cond_signal(&cond);
-  }
-
   for(int i = 0; i < c -> nrthr - 1; i ++){
     if(pthread_join(threads[i], NULL) != 0)
     perror("");
@@ -141,12 +147,13 @@ void createThreads(command* c){
 
 /* Main */
 int main(int argc, char* argv[]){
-  int mode = checkGivenFlags(argc, argv);
-  command* c = getCommand(argc, argv, mode);
+
+
+  command* c = getCommand(argc, argv);
+  sem_init(&sem, 0, c->nrthr+1);
 
   createThreads(c);
   q_free(c -> dirQueue);
   free(c);
-
   return 0;
 }

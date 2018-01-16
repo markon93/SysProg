@@ -27,8 +27,8 @@ void* traverse(void* com){
   int numDirs = 0;
 
   while(true){
+
     pthread_mutex_lock(&m);
-    printf("THREADS WAITING: %d\n",waitingThreads);
     if(q_isEmpty(c -> dirQueue)){
       waitingThreads++;
       pthread_mutex_unlock(&m);
@@ -93,6 +93,7 @@ void* traverse(void* com){
               q_enqueue(c -> dirQueue, fullPathCopy);
               pthread_mutex_unlock(&mEnqueue);
               pthread_cond_signal(&cond);
+			  pthread_mutex_unlock(&mWait);
             }
             else{
               fprintf(stderr, "%s: Permission denied.\n", fullPathCopy);
@@ -121,22 +122,6 @@ void* traverse(void* com){
   return NULL;
 }
 
-/* This function applies the bredth-first search algorithm with specified
-directories as the starting queue. A directory is picked from the queue, and
-new subdirectories are added to the queue as the threads traverse the file
-tree. This goes on until it is certain that all directories have been traversed.
-- com: A structure with all parameters and flags.
-- returns: The NULL pointer, output is printed to stdout.
-*/
-void* traverse2(void* com){
-  command* c = (command*) com;
-  int numDirs = 0;
-
-
-  printf("Thread: %lu Reads: %d\n", pthread_self(), numDirs);
-  threadsDone++;
-  return NULL;
-}
 
 
 /* Create a specified number of threads */
