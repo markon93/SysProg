@@ -20,6 +20,7 @@ list* list_create(){
   }
   created_list -> head -> next = NULL;
   created_list->freeFunc=NULL;
+  created_list -> tail = NULL;
   return created_list;
 }
 
@@ -33,6 +34,13 @@ void list_setMemHandler(list* l, memFreeFunc* f) {
 */
 node* list_first(list* l){
   return l -> head;
+}
+
+/*
+  - returnerar: pekare till sista värdet i listan.
+*/
+node* list_last(list* l){
+  return l -> tail;
 }
 
 /*
@@ -59,6 +67,9 @@ node* list_insert(list* l, node* pos, void* value){
   new -> value = value;
   new -> next = pos -> next;
   pos -> next = new;
+  if(new->next == NULL){
+    l -> tail = new;
+  }
   return pos;
 }
 

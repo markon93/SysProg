@@ -24,6 +24,7 @@ typedef struct link{
 typedef struct list{
   node* head;
   memFreeFunc *freeFunc;
+  node* tail;
 } list;
 
 /*
@@ -38,6 +39,11 @@ void list_setMemHandler(list *l, memFreeFunc *f);
   - returnerar: pekare till det första noden i listan.
 */
 node* list_first(list* l);
+
+/*
+  Returnerar en pekare till sista elementet i listan.
+*/
+node* list_last(list* l);
 
 /*
   Kontrollerar om en lista är tom.
