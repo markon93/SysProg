@@ -9,7 +9,7 @@
 #include "queue.h"
 #include "checkComLine.h"
 
-pthread_mutex_t m;
+pthread_mutex_t m, m2;
 pthread_cond_t cond;
 int waitingThreads = 0, threadsDone = 0;
 
@@ -25,37 +25,37 @@ void* traverse(void* com){
   int numDirs = 0;
 
   while(true){
-    pthread_mutex_lock(&m);
+    pthread_mutex_lock(&m2);
+
     bool empty = q_isEmpty(c->dirQueue);
-    pthread_mutex_unlock(&m);
     if(empty){
+      pthread_mutex_unlock(&m2);
+
       waitingThreads++;
       if(waitingThreads == c -> nrthr){
         pthread_cond_broadcast(&cond);
         break;
       }
 
-      else{
-        pthread_cond_wait(&cond, &m);
-        pthread_mutex_unlock(&m);
-      }
+      pthread_cond_wait(&cond, &m);
+      pthread_mutex_unlock(&m);
 
       if(waitingThreads == c -> nrthr){
         break;
       }
       else{
         waitingThreads--;
-        continue;
       }
     }
-    else{
-      // Pick a directory from the directory queue
 
-      pthread_mutex_lock(&m);
+    else{
+
+      // Pick a directory from the directory queue
       char* dir  = (char*)malloc(strlen(q_peek(c->dirQueue)) + 1);
       strcpy(dir, (char*) q_peek(c -> dirQueue));
       q_dequeue(c -> dirQueue);
-      pthread_mutex_unlock(&m);
+
+      pthread_mutex_unlock(&m2);
 
       // Read the files in the directory
       // If the file is a directory, put it in the queue
@@ -67,7 +67,6 @@ void* traverse(void* com){
         perror(dir);
         free(dir);
       }
-
 
       char* dirWithSlash = (char*)malloc(strlen(dir) + 2);
 
@@ -110,10 +109,10 @@ void* traverse(void* com){
             if((access(fullPathCopy, R_OK) == 0)){
               pthread_mutex_lock(&m);
               q_enqueue(c -> dirQueue, fullPathCopy);
+              pthread_mutex_unlock(&m);
               if(waitingThreads > 0){
                 pthread_cond_signal(&cond);
               }
-              pthread_mutex_unlock(&m);
             }
             else{
               fprintf(stderr, "%s: Permission denied.\n", fullPathCopy);
@@ -134,8 +133,6 @@ void* traverse(void* com){
   return NULL;
 }
 
-
-
 /* Create a specified number of threads */
 void createThreads(command* c){
   pthread_t threads[c -> nrthr - 1];
@@ -149,8 +146,9 @@ void createThreads(command* c){
   }
 
   for(int i = 0; i < c -> nrthr - 1; i ++){
-    if(pthread_join(threads[i], NULL) != 0)
-    perror("");
+    if(pthread_join(threads[i], NULL) != 0){
+      perror("");
+    }
   }
 }
 
