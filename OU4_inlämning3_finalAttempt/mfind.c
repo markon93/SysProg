@@ -25,11 +25,11 @@ void* traverse(void* com){
   int numDirs = 0;
 
   while(true){
-    pthread_mutex_lock(&m2);
+    pthread_mutex_lock(&m);
 
     bool empty = q_isEmpty(c->dirQueue);
     if(empty){
-      pthread_mutex_unlock(&m2);
+      pthread_mutex_unlock(&m);
 
       waitingThreads++;
       if(waitingThreads == c -> nrthr){
@@ -51,11 +51,15 @@ void* traverse(void* com){
     else{
 
       // Pick a directory from the directory queue
-      char* dir  = (char*)malloc(strlen(q_peek(c->dirQueue)) + 1);
+  pthread_mutex_lock(&m2);
+
+char* dir  = (char*)malloc(strlen(q_peek(c->dirQueue)) + 1);
       strcpy(dir, (char*) q_peek(c -> dirQueue));
       q_dequeue(c -> dirQueue);
+	  pthread_mutex_unlock(&m2);
 
-      pthread_mutex_unlock(&m2);
+
+      pthread_mutex_unlock(&m);
 
       // Read the files in the directory
       // If the file is a directory, put it in the queue
@@ -107,9 +111,9 @@ void* traverse(void* com){
           // Add new directories to queue if there are any
           if(S_ISDIR(path_stat.st_mode)){
             if((access(fullPathCopy, R_OK) == 0)){
-              pthread_mutex_lock(&m);
+              pthread_mutex_lock(&m2);
               q_enqueue(c -> dirQueue, fullPathCopy);
-              pthread_mutex_unlock(&m);
+              pthread_mutex_unlock(&m2);
               if(waitingThreads > 0){
                 pthread_cond_signal(&cond);
               }
