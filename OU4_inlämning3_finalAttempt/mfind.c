@@ -27,7 +27,9 @@ void* traverse(void* com){
   while(true){
     pthread_mutex_lock(&m);
 
+    pthread_mutex_lock(&m2);
     bool empty = q_isEmpty(c->dirQueue);
+    pthread_mutex_unlock(&m2);
     if(empty){
       pthread_mutex_unlock(&m);
 
@@ -51,12 +53,12 @@ void* traverse(void* com){
     else{
 
       // Pick a directory from the directory queue
-  pthread_mutex_lock(&m2);
+      pthread_mutex_lock(&m2);
 
-char* dir  = (char*)malloc(strlen(q_peek(c->dirQueue)) + 1);
+      char* dir  = (char*)malloc(strlen(q_peek(c->dirQueue)) + 1);
       strcpy(dir, (char*) q_peek(c -> dirQueue));
       q_dequeue(c -> dirQueue);
-	  pthread_mutex_unlock(&m2);
+	    pthread_mutex_unlock(&m2);
 
 
       pthread_mutex_unlock(&m);
